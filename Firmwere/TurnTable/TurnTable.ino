@@ -7,8 +7,6 @@
 //------U8G2_SH1106_Config------
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-
-
 //------Stepper_PINS------
 //#define PIN_INDEX          // Indexing
 #define PIN_DIAG          25 // diagnostic
@@ -179,8 +177,6 @@ const unsigned char bitmap_item_sel_outline [] PROGMEM = {
 void setup() {
   Serial.begin(115200); // Serial Port communication Via USB for serial print
   TMC_Serial.begin(115200); //TMC hardwere Communication
-  
-\
  
   delay(1000);
   Serial.println("USB Serial: Connected");
@@ -550,8 +546,6 @@ char menu_items [NUM_ITEMS] [MAX_ITEM_LENGTH] = {  // array with item names
 //----------------------------------------------------------------------------------------------------------
 void currentscreen(){
   //item_selected = u8g2.userInterfaceSelectionList("HomeMenu", item_selected, menu1);
-
-
   if (current_screen == 0) { // MENU SCREEN SELECTION & BUTTON CLICK
 
     // up and down buttons only work for the menu screen

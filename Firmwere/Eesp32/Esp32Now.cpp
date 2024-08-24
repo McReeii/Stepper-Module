@@ -1,11 +1,19 @@
+/*-----------------------------------------ESP32--Reciver--MOD-----------------------//EDIT this file Only
+When new parameters needs to be add add respactive Data type to Struct **SAME AS TRANSMETERS STRUCT**.
+And initialize data value by adding corresponding lines to OnDataRecv() memcopy function
+*/
 #include <esp_now.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 
+int counter = 0;
+bool temp = 0;
 
 // // Replace with your network credentials (STATION)
  const char* hostname = "MCREEII";
 // const char* password = "REPLACE_WITH_YOUR_PASSWORD";
+
+uint8_t clientMacAddress[6];
 
 esp_now_peer_info_t slave;
 int chan = 5 ; 
@@ -13,33 +21,73 @@ int chan = 5 ;
 enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
-int counter = 0;
+// Define variables to Button readings to be sent
+uint8_t DataToSend_1;
+uint8_t DataToSend_2;
+int incomingReadingsId;
 
-bool temp = 0;
-
-uint8_t clientMacAddress[6];
+// Define variables to store incoming readings
+uint8_t button_value;
+uint8_t click_type;
+bool err_occur;
 
 // Structure example to receive data
 // Must match the sender structure
-typedef struct struct_message {
+typedef struct struct_messagein {
   uint8_t msgType;
   uint8_t id;
-  float temp;
-  float hum;
+  uint8_t btn_val;
+  uint8_t clk_typ;
+  bool err_ocr;
   unsigned int readingId;
-} struct_message;
+} struct_messagein;
+
+typedef struct struct_messageout {
+  uint8_t msgType;
+  uint8_t id;
+  uint8_t data1;
+  uint8_t data2;
+  bool err_ocr;
+  unsigned int readingId;
+} struct_messageout;
 
 typedef struct struct_pairing {       // new structure for pairing
-    uint8_t msgType;
-    uint8_t id;
-    uint8_t macAddr[6];
-    uint8_t channel;
+  uint8_t msgType;
+  uint8_t id;
+  uint8_t macAddr[6];
+  uint8_t channel;
 } struct_pairing;
 
-struct_message incomingReadings;
-struct_message outgoingSetpoints;
+struct_messagein incomingReadings;
+struct_messageout outgoingSetpoints;
 struct_pairing pairingData;
 
+void getReadings(){
+  DataToSend_1 = 55;
+  DataToSend_2 = 11;
+}
+
+void readDataToSend() {  //----HARD WIRED DATA------------
+  outgoingSetpoints.msgType = DATA;
+  outgoingSetpoints.id = 0;
+  outgoingSetpoints.data1 = DataToSend_1;
+  outgoingSetpoints.data2 = DataToSend_2;
+  outgoingSetpoints.readingId = counter++;
+}
+
+void printResults(){  // Display Readings in Serial Monitor
+  Serial.println("\nINCOMING READINGS");
+  Serial.print("incoming Btn_value: ");
+  Serial.print(button_value);
+  Serial.println(" ºC");
+  Serial.print("incoming Click_type: ");
+  Serial.print(click_type);
+  Serial.println(" %");
+  Serial.print("incomingReadingsId: ");
+  Serial.println(incomingReadingsId);
+}
+
+// ---------------------------- esp_ now -------------------------
 void readMacAddress(){
   uint8_t baseMac[6];
   esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
@@ -52,15 +100,6 @@ void readMacAddress(){
   }
 }
 
-void readDataToSend() {
-  outgoingSetpoints.msgType = DATA;
-  outgoingSetpoints.id = 0;
-  outgoingSetpoints.temp = random(0, 40);
-  outgoingSetpoints.hum = random(0, 100);
-  outgoingSetpoints.readingId = counter++;
-}
-
-// ---------------------------- esp_ now -------------------------
 void printMAC(const uint8_t * mac_addr){
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -99,13 +138,13 @@ bool addPeer(const uint8_t *peer_addr) {      // add pairing
 
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("Last Packet Send Status: ");
-  Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success to " : "Delivery Fail to ");
+  Serial.print("Last Packet Send: ");
+  Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Pass to " : "Fail to ");
   printMAC(mac_addr);
-  Serial.println();
+  Serial.println("\n");
 }
 
-void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) { 
+void OnDataRecv(const uint8_t * mac_addr, const uint16_t *incomingData, int len) { 
   Serial.print(len);
   Serial.println(" bytes of new data received.");
   //JsonDocument root;
@@ -114,21 +153,16 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   switch (type) {
   case DATA :                           // the message is data type
     memcpy(&incomingReadings, incomingData, sizeof(incomingReadings));
-    // // create a JSON document with received data and send it by event to the web page
-    // root["id"] = incomingReadings.id;
-    // root["temperature"] = incomingReadings.temp;
-    // root["humidity"] = incomingReadings.hum;
-    // root["readingId"] = String(incomingReadings.readingId);
-    // serializeJson(root, payload);
-    // Serial.print("event send :");
-    // serializeJson(root, Serial);
-    // events.send(payload.c_str(), "new_readings", millis());
-    // Serial.println();
-    // break;
+    button_value = incomingReadings.btn_val;
+    click_type = incomingReadings.clk_typ;
+    printResults();
+
   
   case PAIRING:                            // the message is a pairing request 
     memcpy(&pairingData, incomingData, sizeof(pairingData));
+    Serial.print("msgType: ");
     Serial.println(pairingData.msgType);
+    Serial.print("BoardID: ");
     Serial.println(pairingData.id);
     Serial.print("Pairing request from MAC Address: ");
     printMAC(pairingData.macAddr);
@@ -174,7 +208,6 @@ void initESP_NOW(){
 void setup() {
   // Initialize Serial Monitor
   Serial.begin(115200);
-
   
   WiFi.setHostname(hostname);
 
@@ -185,15 +218,6 @@ void setup() {
   
   WiFi.STA.begin();
 
-
-  // Set the device as a Station and Soft Access Point simultaneously
-  
-  // // Set device as a Wi-Fi Station
-  // WiFi.begin(ssid, password);
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(1000);
-  //   Serial.println("Setting as a Wi-Fi Station..");
-  // }
   Serial.print("\nServer STA MAC Address: ");
   readMacAddress();
   Serial.print("Server SOFT AP MAC Address:  ");
@@ -205,17 +229,13 @@ void setup() {
   Serial.print("ESP32 Soft AP HostName: ");
   Serial.println(WiFi.softAPgetHostname());
 
-  
-
   // Serial.print("Station IP Address: ");
   // Serial.println(WiFi.localIP());
   
   Serial.print("Wi-Fi Channel: ");
   Serial.println(WiFi.channel());
-  
 
   initESP_NOW();
-
 }
 
 void loop() {
@@ -224,11 +244,9 @@ void loop() {
   if ((millis() - lastEventTime) > EVENT_INTERVAL_MS) {
     //events.send("ping", NULL, millis());
     lastEventTime = millis();
+    getReadings();
     readDataToSend();
     esp_now_send(NULL, (uint8_t *) &outgoingSetpoints, sizeof(outgoingSetpoints));
-    temp = 1;
-    
-
+    temp = 1;    
   }
-
 }
