@@ -1,15 +1,13 @@
 #include "Button.h"
 #include "Pins.h"
 
-//const int EspNowCh[4]={15, 13, 12, 14};
-  
-const int Buttton[3]= {BUTTON_PRV_PIN, BUTTON_FWD_PIN, BUTTON_SELECT_PIN};
-char BtnName[3]={'P', 'F', 'S'};
-bool pressed[3]={0,0,0};
+const int Buttton[6]= {BUTTON_SELECT_PIN, BUTTON_Exit_PIN, BUTTON_PRV_PIN, BUTTON_DOWN_PIN, BUTTON_FWD_PIN, BUTTON_UP_PIN };
+char BtnName[6]={'S','E','P','D','F','U'};
+bool pressed[6]={0,0,0,0,0,0};
 
 bool Buttton_clicked = 0;
 int Pressed_btn = 0;
-char Pressed_btn_name = OK;
+char Pressed_btn_name = 'O';
 bool Long_press;
 bool Trrigger = 0;
 
@@ -33,13 +31,36 @@ long get_time(){
 }
 
 void led_blink(int mS){
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(rpled, HIGH);
   delay(mS);
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(rpled, LOW);
+}
+
+void unclick(){
+  Buttton_clicked = 0;
+  Pressed_btn = 0;
+  Pressed_btn_name = 'O';
+  Long_press = 0;
+  Trrigger = 0;
 }
 
 void click(){
-  for (int btn = 0; btn < 3; btn++)
+  //-----i2c_esp32----click-----
+  if (btn_click_i2c == true){
+    Pressed_btn = click_out;
+    Pressed_btn_name = click_name_out;
+    if (click_type_out == 2){Long_press = 1;} else {Long_press = 0;}
+    Trrigger = btn_click_i2c;
+
+    Serial.print(Pressed_btn); Serial.print(" >> ");
+    Serial.print(Pressed_btn_name); Serial.print(" >> ");
+    Serial.print(Long_press); Serial.print(" >> ");
+    Serial.println(Trrigger);
+    btn_click_i2c = false;
+  }
+
+  //-----RP2040----click-----
+  for (int btn = 0; btn < 6; btn++)
   {
     if ((digitalRead(Buttton[btn]) == LOW) && (pressed[btn] == 0)) {
       Buttton_clicked = 1;
@@ -49,10 +70,10 @@ void click(){
       led_blink(10);
       Pressed_btn = btn + 10; //Pass value to int whitch Button is pressed
       Pressed_btn_name = BtnName[btn]; //Pass value to int what Button is pressed
-      // Serial.print("\nPsd ");
-      // Serial.print(Pressed_btn);
-      // Serial.print(Pressed_btn_name);
-      // Serial.print(" - ");
+      Serial.print("\nPsd ");
+      Serial.print(Pressed_btn);
+      Serial.print(Pressed_btn_name);
+      Serial.print(" - ");
       Trrigger = true;
     }
 
@@ -62,18 +83,18 @@ void click(){
       releae_time = get_time();
       led_blink(10);
       DelayTime = getDelayTime(push_time,releae_time);
-      //Serial.print( " //time_mS/10 - ");
-      //Serial.print(DelayTime);
+      Serial.print( " //time_mS/10 - ");
+      Serial.print(DelayTime);
     }
 
     hold_time = get_time()-push_time;
 
     if ((Buttton_clicked == 1) && (hold_time >= 1000)){     
-      // Serial.print("\nHld ");
-      // Serial.print(Pressed_btn);
-      // Serial.print(Pressed_btn_name);
-      // Serial.print(" - ");
-      // Serial.print(hold_time);
+      Serial.print("\nHld ");
+      Serial.print(Pressed_btn);
+      Serial.print(Pressed_btn_name);
+      Serial.print(" - ");
+      Serial.print(hold_time);
       clickType = HOLD;
       delay(60); led_blink(10);
       //DelayTime = getDelayTime(push_time,releae_time);
@@ -115,15 +136,14 @@ int btn_Hold_ms_Out() {
 }
 
 void Button_init(){
-  pinMode(BUTTON_SELECT_PIN, INPUT_PULLUP);                                           
-  pinMode(BUTTON_FWD_PIN, INPUT_PULLUP);                                           
-  pinMode(BUTTON_PRV_PIN, INPUT_PULLUP);                                           
-  pinMode(LED_BUILTIN, OUTPUT); 
-
-  //pinMode(ESPCH0, INPUT_PULLUP); 
-  //pinMode(ESPCH1, INPUT_PULLUP); 
-  pinMode(ESPCH2, INPUT_PULLUP); 
-  pinMode(ESPCH3, INPUT_PULLUP); 
+  pinMode(rpled, OUTPUT);
+  pinMode(BUTTON_UP_PIN, INPUT_PULLUP); // up button
+  pinMode(BUTTON_SELECT_PIN, INPUT_PULLUP); // select button
+  pinMode(BUTTON_FWD_PIN, INPUT_PULLUP); // next button
+  pinMode(BUTTON_PRV_PIN, INPUT_PULLUP); // prv button
+  pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP); // down button
+  pinMode(BUTTON_Exit_PIN, INPUT_PULLUP);
+  delay(100);
 }
 
 void Button_func(){
@@ -131,5 +151,4 @@ void Button_func(){
   Long_press = false;
   clickType = NONE;
   click();
-  digitalWrite(LED_BUILTIN, HIGH);
 }
