@@ -30,7 +30,7 @@
 #define BUTTON_UP_PIN     7 // pin for UP button                                          
 
 //------Hall_Sensor_Config--------------------------------------------------------
-#define HALL_PIN          2 //Hall Sensor input (digital)
+#define HALL_PIN          27 //Hall Sensor input (digital)
 
 //------Stepper_Motor_Config------------------------------------------------------
 #define GearRatio         48 //GearRatio:1 i.e (48:1 GearRatio)
